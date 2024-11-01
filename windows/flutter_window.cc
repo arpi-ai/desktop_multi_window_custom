@@ -11,6 +11,11 @@
 #include <iostream>
 #include <utility>
 
+#include <windows.h>
+#include <memory>
+#include <algorithm>  // std::min 사용을 위해 추가
+#include <string>     // std::to_string 사용을 위해 추가
+
 #include "include/desktop_multi_window/desktop_multi_window_plugin.h"
 #include "multi_window_plugin_internal.h"
 
@@ -75,32 +80,71 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
 
 }
 
+LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+  switch (message) {
+    case WM_PAINT: {
+      PAINTSTRUCT ps;
+      HDC hdc = BeginPaint(hwnd, &ps);
+
+      // 텍스트 출력
+      SetTextColor(hdc, RGB(0, 0, 0));  // 검은색 텍스트
+      SetBkMode(hdc, TRANSPARENT);
+      TextOut(hdc, 10, 10, L"Hello, Flutter Wind22222222ow!", 20);
+
+      // 이미지 로드 및 출력 (예제 - 리소스나 파일에서 로드하는 방법 필요)
+      HBITMAP hBitmap = static_cast<HBITMAP>(LoadImage(
+          NULL, L"C:\\ARPI\\btn.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+      if (hBitmap) {
+        HDC hMemDC = CreateCompatibleDC(hdc);
+        SelectObject(hMemDC, hBitmap);
+        BitBlt(hdc, 50, 50, 100, 100, hMemDC, 0, 0, SRCCOPY);
+        DeleteDC(hMemDC);
+        DeleteObject(hBitmap);
+      }
+
+      EndPaint(hwnd, &ps);
+      return 0;
+    }
+    default:
+      return DefWindowProc(hwnd, message, wparam, lparam);
+  }
+}
+
 FlutterWindow::FlutterWindow(
     int64_t id,
     std::string args,
     const std::shared_ptr<FlutterWindowCallback> &callback
 ) : callback_(callback), id_(id), window_handle_(nullptr), scale_factor_(1) {
-  RegisterWindowClass(FlutterWindow::WndProc);
+  RegisterWindowClass(CustomWndProc);
 
-  const POINT target_point = {static_cast<LONG>(10),
-                              static_cast<LONG>(10)};
+  const POINT target_point = {static_cast<LONG>(10), static_cast<LONG>(10)};
   HMONITOR monitor = MonitorFromPoint(target_point, MONITOR_DEFAULTTONEAREST);
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   scale_factor_ = dpi / 96.0;
 
   HWND window_handle = CreateWindow(
       kFlutterWindowClassName, L"", WS_POPUPWINDOW | WS_VISIBLE,
-      Scale(target_point.x, scale_factor_), Scale(target_point.y, scale_factor_),
-      Scale(1280, scale_factor_), Scale(720, scale_factor_),
+      Scale(target_point.x, scale_factor_), 
+      Scale(target_point.y, scale_factor_),
+      Scale(1280, scale_factor_), 
+      Scale(720, scale_factor_),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
+
+  int width_scaled = Scale(100, scale_factor_);
+  int height_scaled = Scale(100, scale_factor_);
+  int diameter = min(width_scaled, height_scaled);
+  HRGN hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
+  SetWindowRgn(window_handle, hRgn, TRUE);
 
   RECT frame;
   GetClientRect(window_handle, &frame);
   flutter::DartProject project(L"data");
+
   project.set_dart_entrypoint_arguments({"multi_window", std::to_string(id), std::move(args)});
+
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
       frame.right - frame.left, frame.bottom - frame.top, project);
-  // Ensure that basic setup of the controller was successful.
+
   if (!flutter_controller_->engine() || !flutter_controller_->view()) {
     std::cerr << "Failed to setup FlutterViewController." << std::endl;
   }
@@ -117,9 +161,7 @@ FlutterWindow::FlutterWindow(
     _g_window_created_callback(flutter_controller_.get());
   }
 
-  // hide the window when created.
-  ShowWindow(window_handle, SW_HIDE);
-
+  ShowWindow(window_handle, SW_SHOW);
 }
 
 // static
