@@ -22,6 +22,13 @@
 
 POINT lastCursorPos;
 bool isDragging = false;
+std::chrono::time_point<std::chrono::steady_clock> mouseDownTime;
+
+// 클릭 시 실행할 함수 템플릿
+void OnClickAction() {
+  // 여기에 클릭 시 실행할 코드를 추가하세요
+}
+
 
 namespace {
 
@@ -114,6 +121,7 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
         isDragging = true;
         SetCapture(hwnd);  // 마우스 이동 추적 시작
         GetCursorPos(&lastCursorPos);  // 현재 마우스 위치 저장
+        mouseDownTime = std::chrono::steady_clock::now();  // 마우스 눌린 시간 기록
         return 0;
     }
     case WM_MOUSEMOVE: {
@@ -141,6 +149,15 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
         // 마우스 왼쪽 버튼을 떼었을 때 드래그 종료
         isDragging = false;
         ReleaseCapture();
+
+        // 눌린 시간과 뗀 시간 사이의 간격 확인
+        auto mouseUpTime = std::chrono::steady_clock::now();
+        std::chrono::duration<double> clickDuration = mouseUpTime - mouseDownTime;
+
+        // 0.15초 미만이면 클릭으로 간주하여 함수 실행
+        if (clickDuration.count() < 0.15) {
+          OnClickAction();
+        }
         return 0;
     }
     default:
@@ -161,7 +178,7 @@ FlutterWindow::FlutterWindow(
   scale_factor_ = dpi / 96.0;
 
   HWND window_handle = CreateWindow(
-      kFlutterWindowClassName, L"", WS_POPUPWINDOW | WS_VISIBLE,
+      kFlutterWindowClassName, L"", WS_POPUPWINDOW,
       Scale(target_point.x, scale_factor_), 
       Scale(target_point.y, scale_factor_),
       Scale(1280, scale_factor_), 
@@ -173,6 +190,10 @@ FlutterWindow::FlutterWindow(
   int diameter = min(width_scaled, height_scaled);
   HRGN hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
   SetWindowRgn(window_handle, hRgn, TRUE);
+
+  // 항상 맨 위에 고정
+  SetWindowPos(window_handle, HWND_TOPMOST, 0, 0, 0, 0,
+               SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
   RECT frame;
   GetClientRect(window_handle, &frame);
