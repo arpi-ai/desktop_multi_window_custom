@@ -19,6 +19,10 @@
 #include "include/desktop_multi_window/desktop_multi_window_plugin.h"
 #include "multi_window_plugin_internal.h"
 
+
+POINT lastCursorPos;
+bool isDragging = false;
+
 namespace {
 
 WindowCreatedCallback _g_window_created_callback = nullptr;
@@ -99,6 +103,45 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 
       EndPaint(hwnd, &ps);
       return 0;
+    }
+    case WM_SETCURSOR: {
+        // 마우스를 창에 올릴 때 커서를 손 모양으로 변경
+        SetCursor(LoadCursor(nullptr, IDC_HAND));
+        return TRUE;
+    }
+    case WM_LBUTTONDOWN: {
+        // 마우스 왼쪽 버튼을 눌렀을 때 드래그 시작
+        isDragging = true;
+        SetCapture(hwnd);  // 마우스 이동 추적 시작
+        GetCursorPos(&lastCursorPos);  // 현재 마우스 위치 저장
+        return 0;
+    }
+    case WM_MOUSEMOVE: {
+        // 마우스 이동 시 창을 따라 움직이도록 설정
+        if (isDragging) {
+            POINT currentCursorPos;
+            GetCursorPos(&currentCursorPos);
+
+            // 창의 위치를 업데이트
+            int dx = currentCursorPos.x - lastCursorPos.x;
+            int dy = currentCursorPos.y - lastCursorPos.y;
+
+            RECT windowRect;
+            GetWindowRect(hwnd, &windowRect);
+            MoveWindow(hwnd, windowRect.left + dx, windowRect.top + dy,
+                windowRect.right - windowRect.left,
+                windowRect.bottom - windowRect.top, TRUE);
+
+            // 현재 마우스 위치를 새 위치로 업데이트
+            lastCursorPos = currentCursorPos;
+        }
+        return 0;
+    }
+    case WM_LBUTTONUP: {
+        // 마우스 왼쪽 버튼을 떼었을 때 드래그 종료
+        isDragging = false;
+        ReleaseCapture();
+        return 0;
     }
     default:
       return DefWindowProc(hwnd, message, wparam, lparam);
