@@ -86,18 +86,13 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
 
-      // 텍스트 출력
-      SetTextColor(hdc, RGB(0, 0, 0));  // 검은색 텍스트
-      SetBkMode(hdc, TRANSPARENT);
-      TextOut(hdc, 10, 10, L"Hello, Flutter Wind22222222ow!", 20);
-
       // 이미지 로드 및 출력 (예제 - 리소스나 파일에서 로드하는 방법 필요)
       HBITMAP hBitmap = static_cast<HBITMAP>(LoadImage(
           NULL, L"C:\\ARPI\\btn.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
       if (hBitmap) {
         HDC hMemDC = CreateCompatibleDC(hdc);
         SelectObject(hMemDC, hBitmap);
-        BitBlt(hdc, 50, 50, 100, 100, hMemDC, 0, 0, SRCCOPY);
+        BitBlt(hdc, 100, 100, 300, 300, hMemDC, 0, 0, SRCCOPY);
         DeleteDC(hMemDC);
         DeleteObject(hBitmap);
       }
@@ -130,8 +125,8 @@ FlutterWindow::FlutterWindow(
       Scale(720, scale_factor_),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
-  int width_scaled = Scale(100, scale_factor_);
-  int height_scaled = Scale(100, scale_factor_);
+  int width_scaled = Scale(500, scale_factor_);
+  int height_scaled = Scale(500, scale_factor_);
   int diameter = min(width_scaled, height_scaled);
   HRGN hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
   SetWindowRgn(window_handle, hRgn, TRUE);
@@ -145,12 +140,12 @@ FlutterWindow::FlutterWindow(
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
       frame.right - frame.left, frame.bottom - frame.top, project);
 
-  if (!flutter_controller_->engine() || !flutter_controller_->view()) {
+  if (!flutter_controller_->engine()) {
     std::cerr << "Failed to setup FlutterViewController." << std::endl;
   }
-  auto view_handle = flutter_controller_->view()->GetNativeWindow();
-  SetParent(view_handle, window_handle);
-  MoveWindow(view_handle, 0, 0, frame.right - frame.left, frame.bottom - frame.top, true);
+  // auto view_handle = flutter_controller_->view()->GetNativeWindow();
+  // SetParent(view_handle, window_handle);
+  // MoveWindow(view_handle, 0, 0, frame.right - frame.left, frame.bottom - frame.top, true);
 
   InternalMultiWindowPluginRegisterWithRegistrar(
       flutter_controller_->engine()->GetRegistrarForPlugin("DesktopMultiWindowPlugin"));
