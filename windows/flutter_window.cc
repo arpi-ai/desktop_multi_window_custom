@@ -1,32 +1,100 @@
-//
-// Created by yangbin on 2022/1/11.
-//
+#define WIN32_LEAN_AND_MEAN  // Exclude rarely-used stuff from Windows headers
+#define _WIN32_WINNT 0x0602  // Target Windows 8 or later
+
+#include <winsock2.h>        // Include winsock2.h before windows.h
+#include <Ws2tcpip.h>        // For InetPton
+#include <windows.h>
 
 #include "flutter_window.h"
-
 #include "flutter_windows.h"
-
 #include "tchar.h"
 
 #include <iostream>
 #include <utility>
-
-#include <windows.h>
 #include <memory>
-#include <algorithm>  // std::min 사용을 위해 추가
-#include <string>     // std::to_string 사용을 위해 추가
+#include <algorithm>        // For std::min
+#include <string>           // For std::to_string
+#include <chrono>           // For timing
+
+#pragma comment(lib, "Ws2_32.lib")  // Link with Ws2_32.lib
 
 #include "include/desktop_multi_window/desktop_multi_window_plugin.h"
 #include "multi_window_plugin_internal.h"
-
 
 POINT lastCursorPos;
 bool isDragging = false;
 std::chrono::time_point<std::chrono::steady_clock> mouseDownTime;
 
-// 클릭 시 실행할 함수 템플릿
+// Function to execute on click
 void OnClickAction() {
-  // 여기에 클릭 시 실행할 코드를 추가하세요
+  // MessageBox to confirm click action
+  MessageBox(nullptr, L"Click", L"Click", MB_OK);
+
+  // Data to send to the server
+  std::string data = "message=HelloFlutter";
+
+  // Server settings
+  std::string host = "127.0.0.1";
+  u_short port = 32235;  // Use u_short for port
+
+  // Initialize WinSock
+  WSADATA wsaData;
+  if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+    std::cerr << "WSAStartup failed" << std::endl;
+    return;
+  }
+
+  // Create socket
+  SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (sock == INVALID_SOCKET) {
+    std::cerr << "Socket creation failed" << std::endl;
+    WSACleanup();
+    return;
+  }
+
+  // Server address setup
+  sockaddr_in serverAddr{};
+  serverAddr.sin_family = AF_INET;
+  serverAddr.sin_port = htons(port);
+
+  // Use InetPtonA for ANSI string
+  if (InetPtonA(AF_INET, host.c_str(), &serverAddr.sin_addr) != 1) {
+    std::cerr << "Invalid IP address" << std::endl;
+    closesocket(sock);
+    WSACleanup();
+    return;
+  }
+
+  // Connect to the server
+  if (connect(sock, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) == SOCKET_ERROR) {
+    std::cerr << "Connection failed" << std::endl;
+    closesocket(sock);
+    WSACleanup();
+    return;
+  }
+
+  // Create HTTP request
+  std::string request = "POST /click HTTP/1.1\r\n";
+  request += "Host: " + host + "\r\n";
+  request += "Content-Type: application/x-www-form-urlencoded\r\n";
+  request += "Content-Length: " + std::to_string(data.size()) + "\r\n";
+  request += "Connection: close\r\n\r\n";
+  request += data;
+
+  // Send request
+  send(sock, request.c_str(), static_cast<int>(request.size()), 0);
+
+  // Receive response (optional)
+  char buffer[1024];
+  int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+  if (bytesReceived > 0) {
+    buffer[bytesReceived] = '\0';
+    std::cout << "Response: " << buffer << std::endl;
+  }
+
+  // Close socket
+  closesocket(sock);
+  WSACleanup();
 }
 
 
