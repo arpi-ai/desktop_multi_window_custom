@@ -292,8 +292,10 @@ FlutterWindow::FlutterWindow(
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   scale_factor_ = dpi / 96.0;
 
-  HWND window_handle = CreateWindow(
-      kFlutterWindowClassName, L"", WS_POPUPWINDOW,
+  HWND window_handle = CreateWindowEx(
+      WS_EX_TOOLWINDOW,
+      kFlutterWindowClassName, L"",
+      WS_POPUPWINDOW,
       Scale(target_point.x, scale_factor_), 
       Scale(target_point.y, scale_factor_),
       Scale(92, scale_factor_), 
