@@ -28,12 +28,11 @@ class FlutterWindow : public BaseFlutterWindow {
 
  public:
 
-  FlutterWindow(int64_t id, std::string args, const std::shared_ptr<FlutterWindowCallback> &callback);
-  ~FlutterWindow() override;
+   FlutterWindow(int64_t id, std::string args,
+                 const std::shared_ptr<FlutterWindowCallback> &callback);
+   ~FlutterWindow() override;
 
-  WindowChannel *GetWindowChannel() override {
-    return window_channel_.get();
-  }
+   WindowChannel *GetWindowChannel() override { return window_channel_.get(); }
 
  protected:
 
@@ -57,6 +56,8 @@ class FlutterWindow : public BaseFlutterWindow {
   bool destroyed_ = false;
 
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+  static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam,
+                                 LPARAM lparam);
 
   static FlutterWindow *GetThisFromHandle(HWND window) noexcept;
 

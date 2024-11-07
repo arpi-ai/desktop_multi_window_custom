@@ -177,8 +177,16 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
 
 }
 
-LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
   switch (message) {
+    case WM_NCCREATE: {
+      auto window_struct = reinterpret_cast<CREATESTRUCT *>(lparam);
+      SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window_struct->lpCreateParams));
+
+      auto that = static_cast<FlutterWindow *>(window_struct->lpCreateParams);
+      EnableFullDpiSupportIfAvailable(hwnd);
+      that->window_handle_ = hwnd;
+    }
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
@@ -195,12 +203,10 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
       }
 
       EndPaint(hwnd, &ps);
-      return 0;
     }
     case WM_SETCURSOR: {
         // 마우스를 창에 올릴 때 커서를 손 모양으로 변경
         SetCursor(LoadCursor(nullptr, IDC_HAND));
-        return TRUE;
     }
     case WM_LBUTTONDOWN: {
         // 마우스 왼쪽 버튼을 눌렀을 때 드래그 시작
@@ -208,7 +214,6 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
         SetCapture(hwnd);  // 마우스 이동 추적 시작
         GetCursorPos(&lastCursorPos);  // 현재 마우스 위치 저장
         mouseDownTime = std::chrono::steady_clock::now();  // 마우스 눌린 시간 기록
-        return 0;
     }
     case WM_MOUSEMOVE: {
         // 마우스 이동 시 창을 따라 움직이도록 설정
@@ -229,28 +234,30 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
             // 현재 마우스 위치를 새 위치로 업데이트
             lastCursorPos = currentCursorPos;
         }
-        return 0;
     }
     case WM_LBUTTONUP: {
         ReleaseCapture();
 
         // 눌린 시간과 뗀 시간 사이의 간격 확인
-        auto mouseUpTime = std::chrono::steady_clock::now();
-        std::chrono::duration<double> clickDuration = mouseUpTime - mouseDownTime;
+        // auto mouseUpTime = std::chrono::steady_clock::now();
+        // std::chrono::duration<double> clickDuration = mouseUpTime - mouseDownTime;
 
-        // 0.15초 미만이면 클릭으로 간주하여 함수 실행
-        if (clickDuration.count() < 0.15) {
-          OnClickAction();
-        } else {
-          OnMovingAction(hwnd);
-        }
+        // // 0.15초 미만이면 클릭으로 간주하여 함수 실행
+        // if (clickDuration.count() < 0.15) {
+        //   OnClickAction();
+        // } else {
+        //   OnMovingAction(hwnd);
+        // }
         
         isDragging = false;
-        return 0;
     }
-    default:
-      return DefWindowProc(hwnd, message, wparam, lparam);
+    default: {
+      if (FlutterWindow *that = GetThisFromHandle(hwnd)) {
+        return that->MessageHandler(hwnd, message, wparam, lparam);
+      }
+    }
   }
+  return DefWindowProc(hwnd, message, wparam, lparam);
 }
 
 FlutterWindow::FlutterWindow(
@@ -258,7 +265,7 @@ FlutterWindow::FlutterWindow(
     std::string args,
     const std::shared_ptr<FlutterWindowCallback> &callback
 ) : callback_(callback), id_(id), window_handle_(nullptr), scale_factor_(1) {
-  RegisterWindowClass(CustomWndProc);
+  RegisterWindowClass(FlutterWindow::CustomWndProc);
 
   const POINT target_point = {static_cast<LONG>(10), static_cast<LONG>(10)};
   HMONITOR monitor = MonitorFromPoint(target_point, MONITOR_DEFAULTTONEAREST);
@@ -292,12 +299,12 @@ FlutterWindow::FlutterWindow(
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
       frame.right - frame.left, frame.bottom - frame.top, project);
 
-  if (!flutter_controller_->engine() || !flutter_controller_->view()) {
+  if (!flutter_controller_->engine()) {
     std::cerr << "Failed to setup FlutterViewController." << std::endl;
   }
-  auto view_handle = flutter_controller_->view()->GetNativeWindow();
-  SetParent(view_handle, window_handle);
-  MoveWindow(view_handle, 0, 0, frame.right - frame.left, frame.bottom - frame.top, true);
+  // auto view_handle = flutter_controller_->view()->GetNativeWindow();
+  // SetParent(view_handle, window_handle);
+  // MoveWindow(view_handle, 0, 0, frame.right - frame.left, frame.bottom - frame.top, true);
 
   InternalMultiWindowPluginRegisterWithRegistrar(
       flutter_controller_->engine()->GetRegistrarForPlugin("DesktopMultiWindowPlugin"));
@@ -308,7 +315,7 @@ FlutterWindow::FlutterWindow(
     _g_window_created_callback(flutter_controller_.get());
   }
 
-  ShowWindow(window_handle, SW_SHOW);
+  ShowWindow(window_handle, SW_HIDE);
 }
 
 // static
