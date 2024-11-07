@@ -179,14 +179,14 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
 
 LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
   switch (message) {
-    // case WM_NCCREATE: {
-    //   auto window_struct = reinterpret_cast<CREATESTRUCT *>(lparam);
-    //   SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window_struct->lpCreateParams));
+    case WM_NCCREATE: {
+      auto window_struct = reinterpret_cast<CREATESTRUCT *>(lparam);
+      // SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window_struct->lpCreateParams));
 
-    //   auto that = static_cast<FlutterWindow *>(window_struct->lpCreateParams);
-    //   EnableFullDpiSupportIfAvailable(hwnd);
-    //   that->window_handle_ = hwnd;
-    // }
+      auto that = static_cast<FlutterWindow *>(window_struct->lpCreateParams);
+      EnableFullDpiSupportIfAvailable(hwnd);
+      that->window_handle_ = hwnd;
+    }
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
@@ -203,7 +203,6 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
       }
 
       EndPaint(hwnd, &ps);
-        return 0;
     }
     case WM_SETCURSOR: {
         // 마우스를 창에 올릴 때 커서를 손 모양으로 변경
@@ -243,22 +242,22 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
         ReleaseCapture();
 
         // 눌린 시간과 뗀 시간 사이의 간격 확인
-        // auto mouseUpTime = std::chrono::steady_clock::now();
-        // std::chrono::duration<double> clickDuration = mouseUpTime - mouseDownTime;
+        auto mouseUpTime = std::chrono::steady_clock::now();
+        std::chrono::duration<double> clickDuration = mouseUpTime - mouseDownTime;
 
-        // // 0.15초 미만이면 클릭으로 간주하여 함수 실행
-        // if (clickDuration.count() < 0.15) {
-        //   OnClickAction();
-        // } else {
-        //   OnMovingAction(hwnd);
-        // }
+        // 0.15초 미만이면 클릭으로 간주하여 함수 실행
+        if (clickDuration.count() < 0.15) {
+          OnClickAction();
+        } else {
+          OnMovingAction(hwnd);
+        }
         
         isDragging = false;
     }
     default: {
-      // if (FlutterWindow *that = GetThisFromHandle(hwnd)) {
-      //   return that->MessageHandler(hwnd, message, wparam, lparam);
-      // }
+      if (FlutterWindow *that = GetThisFromHandle(hwnd)) {
+        return that->MessageHandler(hwnd, message, wparam, lparam);
+      }
     }
   }
   return DefWindowProc(hwnd, message, wparam, lparam);
@@ -319,7 +318,7 @@ FlutterWindow::FlutterWindow(
     _g_window_created_callback(flutter_controller_.get());
   }
 
-  ShowWindow(window_handle, SW_SHOW);
+  ShowWindow(window_handle, SW_HIDE);
 }
 
 // static
