@@ -198,7 +198,7 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
       if (hBitmap) {
         HDC hMemDC = CreateCompatibleDC(hdc);
         SelectObject(hMemDC, hBitmap);
-        BitBlt(hdc, 0, 0, 150, 150, hMemDC, 0, 0, SRCCOPY);
+        BitBlt(hdc, -2, -2, 94, 94, hMemDC, 0, 0, SRCCOPY);
         DeleteDC(hMemDC);
         DeleteObject(hBitmap);
       }
@@ -296,12 +296,12 @@ FlutterWindow::FlutterWindow(
       kFlutterWindowClassName, L"", WS_POPUPWINDOW,
       Scale(target_point.x, scale_factor_), 
       Scale(target_point.y, scale_factor_),
-      Scale(138, scale_factor_), 
-      Scale(138, scale_factor_),
+      Scale(92, scale_factor_), 
+      Scale(92, scale_factor_),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
-  int width_scaled = Scale(250, scale_factor_);
-  int height_scaled = Scale(250, scale_factor_);
+  int width_scaled = Scale(74, scale_factor_);
+  int height_scaled = Scale(74, scale_factor_);
   int diameter = min(width_scaled, height_scaled);
   HRGN hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
   SetWindowRgn(window_handle, hRgn, TRUE);
