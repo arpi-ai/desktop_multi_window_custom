@@ -116,6 +116,30 @@ void OnMovingAction(HWND hwnd) {
   }
 }
 
+void OnAutomaticDetectionAction() {
+  std::string path = "/click";
+  std::string jsonBody = R"({"action": "auto-screenshot"})";
+  SendPostRequest(path, jsonBody);
+}
+
+void OnManualDetectionAction() {
+  std::string path = "/click";
+  std::string jsonBody = R"({"action": "manual-screenshot"})";
+  SendPostRequest(path, jsonBody);
+}
+
+void OnOpenAction() {
+  std::string path = "/open";
+  std::string jsonBody = R"({"action": "open"})";
+  SendPostRequest(path, jsonBody);
+}
+
+void OnCloseAction() {
+  std::string path = "/close";
+  std::string jsonBody = R"({"action": "close"})";
+  SendPostRequest(path, jsonBody);
+}
+
 
 namespace {
 
@@ -270,6 +294,46 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
         isDragging = false;
 
         isProcessing = false;
+      return 0;
+    }
+    case WM_RBUTTONUP: {
+      // Create the context menu
+      HMENU hMenu = CreatePopupMenu();
+      if (hMenu) {
+        AppendMenu(hMenu, MF_STRING, 1, L"Automatic Detection");
+        AppendMenu(hMenu, MF_STRING, 2, L"Manual Detection");
+        AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
+        AppendMenu(hMenu, MF_STRING, 3, L"Open");
+        AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
+        AppendMenu(hMenu, MF_STRING, 4, L"Close");
+
+        // Get the cursor position
+        POINT pt;
+        GetCursorPos(&pt);
+
+        // Display the context menu
+        TrackPopupMenu(hMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, nullptr);
+
+        DestroyMenu(hMenu);
+      }
+      return 0;
+    }
+    case WM_COMMAND: {
+      switch (LOWORD(wparam)) {
+        case 1:
+          OnAutomaticDetectionAction();
+          break;
+        case 2:
+          OnManualDetectionAction();
+          break;
+        case 3:
+          OnOpenAction();
+          break;
+        case 4:
+          OnCloseAction();
+          break;
+      }
+      return 0;
     }
     default: {
       if (FlutterWindow *that = GetThisFromHandle(hwnd)) {
