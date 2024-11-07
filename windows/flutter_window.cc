@@ -15,6 +15,7 @@
 #include <algorithm>        // For std::min
 #include <string>           // For std::to_string
 #include <chrono>           // For timing
+#include <sstream>  // For building JSON strings
 
 #pragma comment(lib, "Ws2_32.lib")  // Link with Ws2_32.lib
 
@@ -25,17 +26,10 @@ POINT lastCursorPos;
 bool isDragging = false;
 std::chrono::time_point<std::chrono::steady_clock> mouseDownTime;
 
-// Function to execute on click
-void OnClickAction() {
-  // MessageBox to confirm click action
-  MessageBox(nullptr, L"Click", L"Click", MB_OK);
-
-  // Data to send to the server
-  std::string data = "message=HelloFlutter";
-
+void SendPostRequest(const std::string& path, const std::string& jsonBody) {
   // Server settings
   std::string host = "127.0.0.1";
-  u_short port = 32235;  // Use u_short for port
+  u_short port = 37519;  // Use u_short for port
 
   // Initialize WinSock
   WSADATA wsaData;
@@ -74,12 +68,12 @@ void OnClickAction() {
   }
 
   // Create HTTP request
-  std::string request = "POST /click HTTP/1.1\r\n";
+  std::string request = "POST " + path + " HTTP/1.1\r\n";
   request += "Host: " + host + "\r\n";
-  request += "Content-Type: application/x-www-form-urlencoded\r\n";
-  request += "Content-Length: " + std::to_string(data.size()) + "\r\n";
+  request += "Content-Type: application/json\r\n";  // Specify JSON content type
+  request += "Content-Length: " + std::to_string(jsonBody.size()) + "\r\n";
   request += "Connection: close\r\n\r\n";
-  request += data;
+  request += jsonBody;
 
   // Send request
   send(sock, request.c_str(), static_cast<int>(request.size()), 0);
@@ -95,6 +89,30 @@ void OnClickAction() {
   // Close socket
   closesocket(sock);
   WSACleanup();
+}
+
+// Function to execute on click
+void OnClickAction() {
+  std::string path = "/click";
+  std::string jsonBody = R"({"action": "screenshot"})";
+  SendPostRequest(path, jsonBody);
+}
+
+void OnMovingAction(HWND hwnd) {
+  RECT rect;
+  if (GetWindowRect(hwnd, &rect)) {
+    int x = rect.left;
+    int y = rect.top;
+
+    std::ostringstream jsonBodyStream;
+    jsonBodyStream << R"({"action": "move", "position": {"x": )" << x << R"(, "y": )" << y << R"(}})";
+    std::string jsonBody = jsonBodyStream.str();
+
+    std::string path = "/move";
+    SendPostRequest(path, jsonBody);
+  } else {
+    std::cerr << "Failed to get window position" << std::endl;
+  }
 }
 
 
@@ -214,8 +232,6 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
         return 0;
     }
     case WM_LBUTTONUP: {
-        // 마우스 왼쪽 버튼을 떼었을 때 드래그 종료
-        isDragging = false;
         ReleaseCapture();
 
         // 눌린 시간과 뗀 시간 사이의 간격 확인
@@ -225,7 +241,11 @@ LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
         // 0.15초 미만이면 클릭으로 간주하여 함수 실행
         if (clickDuration.count() < 0.15) {
           OnClickAction();
+        } else {
+          OnMovingAction(hwnd);
         }
+        
+        isDragging = false;
         return 0;
     }
     default:
@@ -272,12 +292,12 @@ FlutterWindow::FlutterWindow(
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
       frame.right - frame.left, frame.bottom - frame.top, project);
 
-  if (!flutter_controller_->engine()) {
+  if (!flutter_controller_->engine() || !flutter_controller_->view()) {
     std::cerr << "Failed to setup FlutterViewController." << std::endl;
   }
-  // auto view_handle = flutter_controller_->view()->GetNativeWindow();
-  // SetParent(view_handle, window_handle);
-  // MoveWindow(view_handle, 0, 0, frame.right - frame.left, frame.bottom - frame.top, true);
+  auto view_handle = flutter_controller_->view()->GetNativeWindow();
+  SetParent(view_handle, window_handle);
+  MoveWindow(view_handle, 0, 0, frame.right - frame.left, frame.bottom - frame.top, true);
 
   InternalMultiWindowPluginRegisterWithRegistrar(
       flutter_controller_->engine()->GetRegistrarForPlugin("DesktopMultiWindowPlugin"));
