@@ -24,6 +24,7 @@
 
 POINT lastCursorPos;
 bool isDragging = false;
+bool isProcessing = false;
 std::chrono::time_point<std::chrono::steady_clock> mouseDownTime;
 
 void SendPostRequest(const std::string& path, const std::string& jsonBody) {
@@ -197,7 +198,7 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
       if (hBitmap) {
         HDC hMemDC = CreateCompatibleDC(hdc);
         SelectObject(hMemDC, hBitmap);
-        BitBlt(hdc, 100, 100, 300, 300, hMemDC, 0, 0, SRCCOPY);
+        BitBlt(hdc, 0, 0, 150, 150, hMemDC, 0, 0, SRCCOPY);
         DeleteDC(hMemDC);
         DeleteObject(hBitmap);
       }
@@ -210,14 +211,23 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
         return TRUE;
     }
     case WM_LBUTTONDOWN: {
+        if (isProcessing) {
+            return 0;
+        }
+        isProcessing = true;
         // 마우스 왼쪽 버튼을 눌렀을 때 드래그 시작
         isDragging = true;
         SetCapture(hwnd);  // 마우스 이동 추적 시작
         GetCursorPos(&lastCursorPos);  // 현재 마우스 위치 저장
         mouseDownTime = std::chrono::steady_clock::now();  // 마우스 눌린 시간 기록
+        isProcessing = false;
         return 0;
     }
     case WM_MOUSEMOVE: {
+        if (isProcessing) {
+            return 0;
+        }
+        isProcessing = true;
         // 마우스 이동 시 창을 따라 움직이도록 설정
         if (isDragging) {
             POINT currentCursorPos;
@@ -236,9 +246,14 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
             // 현재 마우스 위치를 새 위치로 업데이트
             lastCursorPos = currentCursorPos;
         }
+        isProcessing = false;
         return 0;
     }
     case WM_LBUTTONUP: {
+        if (isProcessing) {
+            return 0;
+        }
+        isProcessing = true;
         ReleaseCapture();
 
         // 눌린 시간과 뗀 시간 사이의 간격 확인
@@ -253,6 +268,8 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
         }
         
         isDragging = false;
+
+        isProcessing = false;
     }
     default: {
       if (FlutterWindow *that = GetThisFromHandle(hwnd)) {
@@ -279,12 +296,12 @@ FlutterWindow::FlutterWindow(
       kFlutterWindowClassName, L"", WS_POPUPWINDOW,
       Scale(target_point.x, scale_factor_), 
       Scale(target_point.y, scale_factor_),
-      Scale(1280, scale_factor_), 
-      Scale(720, scale_factor_),
+      Scale(138, scale_factor_), 
+      Scale(138, scale_factor_),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
-  int width_scaled = Scale(500, scale_factor_);
-  int height_scaled = Scale(500, scale_factor_);
+  int width_scaled = Scale(250, scale_factor_);
+  int height_scaled = Scale(250, scale_factor_);
   int diameter = min(width_scaled, height_scaled);
   HRGN hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
   SetWindowRgn(window_handle, hRgn, TRUE);
