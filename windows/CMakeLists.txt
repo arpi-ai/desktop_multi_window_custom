@@ -25,7 +25,3 @@ set(desktop_multi_window_bundled_libraries
   ""
   PARENT_SCOPE
 )
-
-add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_CURRENT_SOURCE_DIR}/resources $<TARGET_FILE_DIR:${PLUGIN_NAME}>/resources)
