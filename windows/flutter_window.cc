@@ -16,6 +16,8 @@
 #include <string>           // For std::to_string
 #include <chrono>           // For timing
 #include <sstream>  // For building JSON strings
+#include <shlwapi.h>  // For PathRemoveFileSpec
+#pragma comment(lib, "Shlwapi.lib")  // Link with Shlwapi.lib
 
 #pragma comment(lib, "Ws2_32.lib")  // Link with Ws2_32.lib
 
@@ -216,9 +218,18 @@ LRESULT CALLBACK FlutterWindow::CustomWndProc(HWND hwnd, UINT message, WPARAM wp
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
 
-      // 이미지 로드 및 출력 (예제 - 리소스나 파일에서 로드하는 방법 필요)
+      // Get the executable's directory
+      wchar_t exePath[MAX_PATH];
+      GetModuleFileName(nullptr, exePath, MAX_PATH);
+      PathRemoveFileSpec(exePath);  // Remove the executable name to get the directory
+
+      // Append the relative path to resources
+      std::wstring imagePath = std::wstring(exePath) + L"\\data\\flutter_assets\\assets\\images\\btn.bmp";
+
+      // Load the image using the constructed relative path
       HBITMAP hBitmap = static_cast<HBITMAP>(LoadImage(
-          NULL, L"C:\\ARPI\\btn.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+        nullptr, imagePath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+
       if (hBitmap) {
         HDC hMemDC = CreateCompatibleDC(hdc);
         SelectObject(hMemDC, hBitmap);
