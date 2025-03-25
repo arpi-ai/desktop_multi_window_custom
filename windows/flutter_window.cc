@@ -373,26 +373,24 @@ FlutterWindow::FlutterWindow(
     int64_t id, std::string args,
     const std::shared_ptr<FlutterWindowCallback> &callback)
     : callback_(callback), id_(id), window_handle_(nullptr), scale_factor_(1) {
+    // DPI 인식을 비활성화하여 항상 1:1 스케일링 사용 (맨 앞으로 이동)
+    SetProcessDPIAware();
+
     RegisterWindowClass(FlutterWindow::CustomWndProc);
 
     const POINT target_point = {static_cast<LONG>(10), static_cast<LONG>(10)};
-    HMONITOR monitor = MonitorFromPoint(target_point, MONITOR_DEFAULTTONEAREST);
-    UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
-    scale_factor_ = dpi / 96.0;
-
     HWND window_handle = CreateWindowEx(
         WS_EX_TOOLWINDOW | WS_EX_LAYERED, kFlutterWindowClassName, L"",
-        WS_POPUPWINDOW, Scale(target_point.x, scale_factor_),
-        Scale(target_point.y, scale_factor_), Scale(92, scale_factor_),
-        Scale(92, scale_factor_), nullptr, nullptr, GetModuleHandle(nullptr),
-        this);
+        WS_POPUPWINDOW, target_point.x, target_point.y,
+        92, // 전체 창 크기
+        92, nullptr, nullptr, GetModuleHandle(nullptr), this);
 
     // Set the window background to be transparent
     SetLayeredWindowAttributes(window_handle, RGB(255, 255, 255), 0,
                                LWA_COLORKEY);
 
-    int width_scaled = Scale(74, scale_factor_);
-    int height_scaled = Scale(74, scale_factor_);
+    int width_scaled = 92;  // 74 -> 92로 변경
+    int height_scaled = 92; // 74 -> 92로 변경
     int diameter = min(width_scaled, height_scaled);
     HRGN hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
     SetWindowRgn(window_handle, hRgn, TRUE);
